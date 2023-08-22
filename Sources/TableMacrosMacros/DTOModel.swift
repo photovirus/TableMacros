@@ -62,7 +62,7 @@ enum DTOModelDiagnostic: String, DiagnosticMessage {
 // TODO: Make Create model from primary init (maybe marked up one)
 // Maybe Update as well
 
-public struct DTOModelMacro: MemberMacro {
+public struct DTOModelMacro: MemberMacro, ExtensionMacro {
 
     struct Property: DTOPropertyProtocol {
         var pattern: PatternSyntax,
@@ -111,6 +111,50 @@ public struct DTOModelMacro: MemberMacro {
         }
 
         return [structDecl.as(DeclSyntax.self)!]
+    }
+
+    public static func expansion(of node: SwiftSyntax.AttributeSyntax, attachedTo declaration: some SwiftSyntax.DeclGroupSyntax, providingExtensionsOf type: some SwiftSyntax.TypeSyntaxProtocol, conformingTo protocols: [SwiftSyntax.TypeSyntax], in context: some SwiftSyntaxMacros.MacroExpansionContext) throws -> [SwiftSyntax.ExtensionDeclSyntax] {
+        guard let classDecl = declaration.as(ClassDeclSyntax.self) else {
+            let classOnlyError = Diagnostic(node: node.as(Syntax.self)!, message: DTOModelDiagnostic.onlyApplicableToClass)
+            context.diagnose(classOnlyError)
+            return []
+        }
+
+        guard let purpose = Self.getPurpose(from: node, context: context),
+              purpose == .create else {
+            return []
+        }
+
+        let properties = Self.getPropertiesFromDTOProperties(from: classDecl, context: context, purpose: purpose)
+
+        let initProperties = Self.getPropertiesFromDTOInit(from: classDecl, context: context, purpose: purpose)
+
+        let memberBlock: MemberBlockSyntax
+        switch (!properties.isEmpty, !initProperties.isEmpty) {
+        case (true, true):
+            let bothPropertiesError = Diagnostic(node: node.as(Syntax.self)!, message: DTOModelDiagnostic.bothPropertiesAndInitPresent)
+            context.diagnose(bothPropertiesError)
+            return []
+        case (true, false):
+            memberBlock = try MemberBlockSyntax(membersBuilder: {
+                "public typealias Create = \(raw: classDecl.name.text).DTOCreate"
+                try Self.makeCreateableInitDecl(properties: properties)
+            })
+        case (false, true):
+            memberBlock = try MemberBlockSyntax(membersBuilder: {
+                "public typealias Create = \(raw: classDecl.name.text).DTOCreate"
+                try Self.makeCreateableInitDecl(properties: initProperties)
+            })
+        case (false, false):
+            let emptyPropertiesWarning = Diagnostic(node: node.as(Syntax.self)!, message: DTOModelDiagnostic.noPropertiesOrInitFound)
+            context.diagnose(emptyPropertiesWarning)
+            return []
+        }
+
+        return [.init(
+            extendedType: TypeSyntax(stringLiteral: classDecl.name.text),
+            inheritanceClause: .init(inheritedTypesBuilder: { .init(type: TypeSyntax(stringLiteral: "CreateableModel")) }),
+            memberBlock: memberBlock)]
     }
 
     static func getPurpose<Context: MacroExpansionContext>(from node: AttributeSyntax, context: Context) -> DTOModelPurpose? {
@@ -206,7 +250,7 @@ public struct DTOModelMacro: MemberMacro {
         }
 
         var structInitDecls = [InitializerDeclSyntax]()
-        structInitDecls.append(try Self.makeInitDecl(properties: properties))
+        structInitDecls.append(try Self.makeDTOInitDecl(properties: properties))
         if purpose == .output {
             structInitDecls.append(try makeOutputInitDecl(properties: properties))
         }
@@ -217,11 +261,18 @@ public struct DTOModelMacro: MemberMacro {
         structMembers += structInitDecls.map { initDecl in  MemberBlockItemSyntax(decl: initDecl)
         }
 
+        var inheritanceList: [InheritedTypeSyntax] = [
+            .init(type: TypeSyntax(stringLiteral: "Content")),
+        ]
+        if purpose == .output {
+            inheritanceList.append(.init(type: TypeSyntax(stringLiteral: "BasicOutput")))
+        }
+        
         let structDecl = StructDeclSyntax(
             modifiers: [DeclModifierSyntax(name: .keyword(.public))],
             name: .init(stringLiteral: purpose.structName),
             inheritanceClause: InheritanceClauseSyntax(inheritedTypesBuilder: {
-                .init(type: TypeSyntax(stringLiteral: "Content"))
+                InheritedTypeListSyntax(inheritanceList)
             }),
             memberBlock: .init(members: .init(structMembers))
         )
@@ -229,7 +280,7 @@ public struct DTOModelMacro: MemberMacro {
         return structDecl
     }
 
-    static func makeInitDecl<P: DTOPropertyProtocol>(properties: [P]) throws -> InitializerDeclSyntax {
+    static func makeDTOInitDecl<P: DTOPropertyProtocol>(properties: [P]) throws -> InitializerDeclSyntax {
         let funcPropsString = "public init(" + properties.map { property -> String in
             "\(property.pattern)\(property.typeAnnotation)"
         }.joined(separator: ", ") + ")"
@@ -243,6 +294,17 @@ public struct DTOModelMacro: MemberMacro {
             )
         }
         return structInitDecl
+    }
+
+    static func makeCreateableInitDecl<P: DTOPropertyProtocol>(properties: [P]) throws -> InitializerDeclSyntax {
+        let funcPropsString = "public convenience init(with input: Create)"
+        let propertiesString = properties.compactMap {
+            "\($0.pattern): input.\($0.pattern)"
+        }.joined(separator: ", ")
+        let initDecl = try InitializerDeclSyntax(SyntaxNodeString("\(raw: funcPropsString)")) {
+            "self.init(\(raw: propertiesString))"
+        }
+        return initDecl
     }
 
     static func makeOutputTypealiasDecl(classDecl: ClassDeclSyntax) -> TypeAliasDeclSyntax {

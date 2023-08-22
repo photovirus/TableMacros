@@ -7,6 +7,7 @@
 
 import SharedModels
 
+@attached(extension, names: named(CreateableModel))
 @attached(member, names: named(DTOCreate), named(DTOUpdate), named(DTOOutput))
 public macro DTOModel(_ purpose: DTOModelPurpose) = #externalMacro(module: "TableMacrosMacros", type: "DTOModelMacro")
 

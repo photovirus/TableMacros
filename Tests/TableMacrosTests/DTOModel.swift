@@ -57,6 +57,13 @@ final class DTOModelMacroTests: XCTestCase {
                 }
 
             }
+
+            extension TestModel: CreateableModel {
+                public typealias Create = TestModel.DTOCreate
+                public convenience init(with input: Create) {
+                    self.init(createOptionalVariable: input.createOptionalVariable, createRequiredVariable: input.createRequiredVariable)
+                }
+            }
             """ ,
             macros: Self.testMacros
         )
@@ -86,7 +93,7 @@ final class DTOModelMacroTests: XCTestCase {
 
                 public var notOutputVariable: TestType3
 
-                public struct DTOOutput: Content {
+                public struct DTOOutput: Content, BasicOutput {
                     public let outputVariable1: TestType1
                     public let outputVariable2: TestType2
                     public typealias Model = TestModel
@@ -127,7 +134,9 @@ final class DTOModelMacroTests: XCTestCase {
 
             }
             """ ,
-            diagnostics: [DiagnosticSpec(message: "'@DTOModel' without both '@DTOProperty' or '@DTOInit' variables does nothing. Consider marking up properties or inits,–or removing the macro altogether", line: 1, column: 1, severity: .warning)],
+            diagnostics: [
+                DiagnosticSpec(message: "'@DTOModel' without both '@DTOProperty' or '@DTOInit' variables does nothing. Consider marking up properties or inits,–or removing the macro altogether", line: 1, column: 1, severity: .warning),
+                DiagnosticSpec(message: "'@DTOModel' without both '@DTOProperty' or '@DTOInit' variables does nothing. Consider marking up properties or inits,–or removing the macro altogether", line: 1, column: 1, severity: .warning)],
             macros: Self.testMacros
         )
     }
@@ -170,7 +179,14 @@ final class DTOModelMacroTests: XCTestCase {
                         self.createRequiredVariable = createRequiredVariable
                     }
                 }
+            
+            }
 
+            extension TestModel: CreateableModel {
+                public typealias Create = TestModel.DTOCreate
+                public convenience init(with input: Create) {
+                    self.init(createOptionalVariable: input.createOptionalVariable, createRequiredVariable: input.createRequiredVariable)
+                }
             }
             """ ,
             macros: Self.testMacros
