@@ -36,17 +36,11 @@ let package = Package(
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
                 "SharedModels",
-            ],
-            swiftSettings: [
-                .unsafeFlags(["-cross-module-optimization", "-parse-as-library"])
-            ]        
+            ]
         ),
 
         .target(
-            name: "SharedModels",
-            swiftSettings: [
-                .unsafeFlags(["-cross-module-optimization", "-parse-as-library"])
-            ]
+            name: "SharedModels"
         ),
 
         // Library that exposes a macro as part of its API, which is used in client programs.
@@ -55,9 +49,6 @@ let package = Package(
             dependencies: [
                 "TableMacrosMacros",
                 "SharedModels"
-            ],
-            swiftSettings: [
-                .unsafeFlags(["-cross-module-optimization", "-parse-as-library"])
             ]
         ),
 

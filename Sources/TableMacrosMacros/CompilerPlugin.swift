@@ -1,5 +1,5 @@
 //
-//  main.swift
+//  CompilerPlugin.swift
 //
 //
 //  Created by Yakov Shapovalov on 10.06.2023.
