@@ -5,10 +5,11 @@
 //  Created by Yakov Shapovalov on 10.06.2023.
 //
 
+import BridgesModelProtocols
 import SharedModels
 
 @attached(member, names: named(DTOCreate), named(DTOUpdate), named(DTOOutput))
-@attached(extension, names: named(Create), named(init(with:)), named(CreateableModel))
+@attached(extension, names: named(Create), named(init(with:)), conformances: CreateableModel)
 public macro DTOModel(_ purpose: DTOModelPurpose) = #externalMacro(module: "TableMacrosMacros", type: "DTOModelMacro")
 
 @attached(peer)

@@ -6,21 +6,13 @@ import CompilerPluginSupport
 
 let package = Package(
     name: "TableMacros",
-    platforms: [.macOS(.v10_15), .iOS(.v13), .tvOS(.v13), .watchOS(.v6), .macCatalyst(.v13)],
+    platforms: [.macOS(.v13)],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "TableMacros",
             targets: ["TableMacros"]
         ),
-//        .library(
-//            name: "TableMacrosMacros",
-//            targets: ["TableMacrosMacros"]
-//        ),
-//        .library(
-//            name: "SharedModels",
-//            targets: ["SharedModels"]
-//        ),
     ],
     dependencies: [
         // Depend on the latest Swift 5.9 prerelease of SwiftSyntax
@@ -49,6 +41,7 @@ let package = Package(
             name: "TableMacros",
             dependencies: [
                 "TableMacrosMacros",
+                "BridgesModelProtocols",
                 "SharedModels"
             ]
         ),
